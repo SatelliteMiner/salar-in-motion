@@ -109,7 +109,7 @@ The processing also uses k-means clustering (scikit-learn), a classical machine-
 
 ## Timing
 
-[To be confirmed by the team] A first run of the data access and processing was done between 10 and 12 November 2026. During the hackathon weekend we re-ran the full processing, added the per-date and persistent-change layers, and built the interactive application, the English materials and this repository.
+A first run of the data access and processing was done between 10 and 12 November 2026. During the hackathon weekend we re-ran the full processing, added the per-date and persistent-change layers, and built the interactive application, the English materials and this repository.
 
 ## Data attribution
 
