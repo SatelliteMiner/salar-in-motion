@@ -6,7 +6,7 @@ Project by **Team Satellite Miner** for the *Dancing with the SARs* challenge of
 
 > Status: hackathon prototype. Results are preliminary and have not been validated in the field.
 
-**Interactive application:** [link to GitHub Pages, to be added]
+**Interactive application:** https://satelliteminer.github.io/salar-in-motion/
 
 ## What it is
 
