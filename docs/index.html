@@ -97,9 +97,11 @@
         <summary>Method</summary>
         <ul>
           <li>NISAR GCOV L-band scenes, orbit 118 ascending, frame 165, five dates.</li>
-          <li>Area of about 60 by 63 km at 20 m pixels; 5 x 5 speckle filter.</li>
+          <li>Area of about 61 by 62 km at 20 m pixels; 5 x 5 speckle filter.</li>
           <li>Change = HH backscatter of each date minus HH of 10 June 2026, in dB.</li>
-          <li>Zones: change above 3 dB and area of at least 0.1 km².</li>
+          <li>Zones: change above 3 dB between the first and the last date, and area of at least 0.1 km².</li>
+          <li>Persistent change: same direction in at least 3 of the 4 later dates, above 1.5 dB.</li>
+          <li>The map overlay starts at 2 dB, and the pond sector was followed with a 2 dB threshold.</li>
           <li>Main zones checked against Sentinel-2 optical images.</li>
         </ul>
       </details>
@@ -109,11 +111,12 @@
           <li>Five dates from winter to spring cannot separate a trend from the seasonal cycle.</li>
           <li>A change in radar signal does not say by itself what changed.</li>
           <li>No field validation; thresholds are provisional.</li>
+          <li>NISAR has no data between 27 July and 10 August 2026, so the exact day of the change in the pond sector is unknown.</li>
           <li>Radar sees the surface: no groundwater, no water quality.</li>
           <li>This tool describes change. It does not assess impacts or assign responsibilities.</li>
         </ul>
       </details>
-      <p class="note">Data: NISAR (NASA/JPL and ISRO) via the Alaska Satellite Facility DAAC; Sentinel-2 (ESA, Copernicus). Built by Team Satellite Miner for the NASA Space Apps Challenge 2026, challenge "Dancing with the SARs". Not endorsed by NASA.</p>
+      <p class="note">Data: NISAR (NASA/JPL and ISRO) via the Alaska Satellite Facility DAAC; Sentinel-2 (ESA; contains modified Copernicus Sentinel data 2026). Software: Leaflet. Built by Team Satellite Miner for the NASA Space Apps Challenge 2026, challenge "Dancing with the SARs". Not endorsed by NASA. Source code: <a href="https://github.com/SatelliteMiner/salar-in-motion">github.com/SatelliteMiner/salar-in-motion</a>.</p>
     </section>
   </aside>
   <div id="map"></div>
