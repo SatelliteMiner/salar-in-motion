@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salar in Motion · NISAR change monitor</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  :root { --navy:#12305a; --ink:#1f2933; --grey:#5b6770; --line:#d9e0e8; --bg:#f3f6fa; --up:#1ea0e6; --down:#dc2d2d; --dark:#e0a800; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); }
+  #app { display: flex; height: 100%; }
+  #side { width: 380px; flex: none; overflow-y: auto; border-right: 1px solid var(--line); background: #fff; }
+  #map { flex: 1; background: #dfe5ec; }
+  header { background: var(--navy); color: #fff; padding: 16px 18px; }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; font-size: 13px; opacity: .9; line-height: 1.4; }
+  section { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--navy); }
+  p.note { margin: 6px 0 0; font-size: 12px; color: var(--grey); line-height: 1.45; }
+  .dates { display: flex; gap: 4px; }
+  .dates button { flex: 1; padding: 7px 2px; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; color: var(--ink); }
+  .dates button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .stat { background: var(--bg); border-radius: 6px; padding: 8px; }
+  .stat b { display: block; font-size: 17px; }
+  .stat span { font-size: 11px; color: var(--grey); line-height: 1.3; display: block; }
+  svg text { font-size: 10px; fill: var(--grey); }
+  label.row { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin: 6px 0; cursor: pointer; line-height: 1.35; }
+  label.row input { margin-top: 2px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+  input[type=range] { width: 100%; }
+  .filters { display: flex; gap: 4px; margin-bottom: 8px; }
+  .filters button { flex: 1; font-size: 12px; padding: 5px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; }
+  .filters button[aria-pressed="true"] { background: var(--bg); border-color: var(--navy); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--grey); font-weight: 600; padding: 4px 4px; border-bottom: 1px solid var(--line); }
+  td { padding: 5px 4px; border-bottom: 1px solid #eef1f5; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover, tbody tr.sel { background: var(--bg); }
+  details { font-size: 13px; line-height: 1.5; }
+  details summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+  details ul { padding-left: 18px; margin: 6px 0; }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.45; }
+  .leaflet-popup-content b.t { color: var(--navy); }
+  @media (max-width: 760px) { #app { flex-direction: column; } #side { width: 100%; max-height: 48%; border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>Salar in Motion</h1>
+      <p>What changed on the surface of the Salar del Hombre Muerto (Argentina) between June and October 2026, seen by the NISAR L-band radar.</p>
+    </header>
+
+    <section>
+      <h2>Date</h2>
+      <div class="dates" id="dates"></div>
+      <div class="stats">
+        <div class="stat"><b id="sUp">–</b><span>km² brighter than 10 June</span></div>
+        <div class="stat"><b id="sDown">–</b><span>km² darker than 10 June</span></div>
+        <div class="stat"><b id="sDark">–</b><span>km² very dark surface</span></div>
+      </div>
+      <svg id="chart" viewBox="0 0 344 120" width="100%" role="img" aria-label="Area brighter and darker than 10 June, per date"></svg>
+      <p class="note">Bars: area whose HH backscatter rose (blue) or fell (red) by more than 3 dB against 10 June. The swing between dates shows that part of the change is seasonal.</p>
+      <p class="note" id="dateNote">The date selector updates the figures, the chart, the change map and the "very dark surface" layer.</p>
+    </section>
+
+    <section>
+      <h2>Layers</h2>
+      <label class="row"><input type="checkbox" id="lChange" checked><span><span class="sw" style="background:var(--up)"></span><span class="sw" style="background:var(--down)"></span><span id="lChangeTxt">Change, 10 June to 20 October (signal up / down, more than 2 dB)</span></span></label>
+      <label class="row" id="rowPers"><input type="checkbox" id="lPers"><span><span class="sw" style="background:var(--up)"></span><span class="sw" style="background:var(--down)"></span>Persistent change: same direction in at least 3 of the 4 later dates (more than 1.5 dB)</span></label>
+      <label class="row"><input type="checkbox" id="lZones" checked><span>Change zones (43, each at least 0.1 km²)</span></label>
+      <label class="row"><input type="checkbox" id="lDark"><span><span class="sw" style="background:var(--dark)"></span>Very dark surface on the selected date (provisional: open water or smooth dry ground)</span></label>
+      <label class="row"><input type="checkbox" id="lSites" checked><span>Reference sites</span></label>
+      <p class="note" style="margin-top:10px">Overlay opacity</p>
+      <input type="range" id="op" min="0.2" max="1" step="0.05" value="0.85" aria-label="Overlay opacity">
+    </section>
+
+    <section>
+      <h2>Change zones</h2>
+      <div class="filters" id="filters">
+        <button data-f="all" aria-pressed="true">All</button>
+        <button data-f="brightened" aria-pressed="false">Brightened</button>
+        <button data-f="darkened" aria-pressed="false">Darkened</button>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Direction</th><th>km²</th><th>dB</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="note">Click a row to go to the zone. Sorted by area.</p>
+    </section>
+
+    <section>
+      <details open>
+        <summary>Method</summary>
+        <ul>
+          <li>NISAR GCOV L-band scenes, orbit 118 ascending, frame 165, five dates.</li>
+          <li>Area of about 60 by 63 km at 20 m pixels; 5 x 5 speckle filter.</li>
+          <li>Change = HH backscatter of each date minus HH of 10 June 2026, in dB.</li>
+          <li>Zones: change above 3 dB and area of at least 0.1 km².</li>
+          <li>Main zones checked against Sentinel-2 optical images.</li>
+        </ul>
+      </details>
+      <details open>
+        <summary>Limits</summary>
+        <ul>
+          <li>Five dates from winter to spring cannot separate a trend from the seasonal cycle.</li>
+          <li>A change in radar signal does not say by itself what changed.</li>
+          <li>No field validation; thresholds are provisional.</li>
+          <li>Radar sees the surface: no groundwater, no water quality.</li>
+          <li>This tool describes change. It does not assess impacts or assign responsibilities.</li>
+        </ul>
+      </details>
+      <p class="note">Data: NISAR (NASA/JPL and ISRO) via the Alaska Satellite Facility DAAC; Sentinel-2 (ESA, Copernicus). Built by Team Satellite Miner for the NASA Space Apps Challenge 2026, challenge "Dancing with the SARs". Not endorsed by NASA.</p>
+    </section>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="data/data.js"></script>
+<script>
+(function () {
+  var D = window.SALAR, UP = '#1ea0e6', DOWN = '#dc2d2d';
+  var map = L.map('map', { zoomSnap: 0.25 }).fitBounds(D.bounds);
+  var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 17, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' });
+  var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap contributors' });
+  sat.addTo(map);
+  L.control.layers({ 'Satellite': sat, 'Street map': osm }, null, { position: 'topright' }).addTo(map);
+  L.control.scale({ imperial: false }).addTo(map);
+
+  var CH = D.change || {}; CH[D.dates[D.dates.length - 1]] = CH[D.dates[D.dates.length - 1]] || 'change_jun_oct.png';
+  var perDate = Object.keys(CH).length > 1;
+  var change = L.imageOverlay('data/change_jun_oct.png', D.bounds, { opacity: 0.85 }).addTo(map);
+  var pers = L.imageOverlay(D.persistent ? 'data/persistent.png' : 'data/change_jun_oct.png', D.bounds, { opacity: 0.85 });
+  if (!D.persistent) document.getElementById('rowPers').style.display = 'none';
+  if (!perDate) document.getElementById('dateNote').textContent = 'The date selector updates the figures, the chart and the "very dark surface" layer. The red and blue map overlay always compares the first and the last date.';
+  var dark = L.imageOverlay('data/verydark_' + D.dates[0] + '.png', D.bounds, { opacity: 0.85 });
+  var byId = {}, filter = 'all', sel = null;
+
+  function popup(p) {
+    return '<b class="t">Zone ' + p.id + '</b><br>' + (p.dir === 'brightened' ? 'Signal increased' : 'Signal decreased') +
+      ' by ' + Math.abs(p.db).toFixed(1) + ' dB on average<br>Area: ' + p.area.toFixed(2) + ' km²<br>' + p.loc + '<br><i>' + p.cls + '</i>';
+  }
+  var zones = L.geoJSON(D.zones, {
+    style: function (f) { return { color: f.properties.dir === 'brightened' ? UP : DOWN, weight: 1.5, fillOpacity: 0.05 }; },
+    onEachFeature: function (f, l) { byId[f.properties.id] = l; l.bindPopup(popup(f.properties)); l.on('click', function () { select(f.properties.id, false); }); }
+  }).addTo(map);
+
+  var sites = L.layerGroup(D.sites.map(function (s) {
+    return L.circleMarker([s.lat, s.lon], { radius: 7, color: '#fff', weight: 2, fillColor: '#12305a', fillOpacity: 1 })
+      .bindPopup('<b class="t">' + s.name + '</b><br>' + s.note).bindTooltip(s.name);
+  })).addTo(map);
+
+  function toggle(id, layer) {
+    document.getElementById(id).addEventListener('change', function (e) { e.target.checked ? layer.addTo(map) : map.removeLayer(layer); });
+  }
+  toggle('lChange', change); toggle('lPers', pers); toggle('lZones', zones); toggle('lDark', dark); toggle('lSites', sites);
+  document.getElementById('op').addEventListener('input', function (e) { change.setOpacity(+e.target.value); pers.setOpacity(+e.target.value); dark.setOpacity(+e.target.value); });
+
+  // dates
+  var box = document.getElementById('dates'), cur = D.dates.length - 1;
+  var fmtLong = function (d) { return new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
+  var fmt = function (d) { return new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  D.dates.forEach(function (d, i) {
+    var b = document.createElement('button'); b.textContent = fmt(d); b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', function () { setDate(i); }); box.appendChild(b);
+  });
+  function setDate(i) {
+    cur = i; var s = D.series[i];
+    [].forEach.call(box.children, function (b, k) { b.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
+    document.getElementById('sUp').textContent = s.up.toFixed(1);
+    document.getElementById('sDown').textContent = s.down.toFixed(1);
+    document.getElementById('sDark').textContent = s.dark.toFixed(1);
+    dark.setUrl('data/verydark_' + D.dates[i] + '.png');
+    if (perDate) {
+      var lab = document.getElementById('lChangeTxt');
+      if (i === 0) { change.setUrl('data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='); lab.textContent = 'Change against 10 June (choose a later date)'; }
+      else if (CH[D.dates[i]]) { change.setUrl('data/' + CH[D.dates[i]]); lab.textContent = 'Change, 10 June to ' + fmtLong(D.dates[i]) + ' (signal up / down, more than 2 dB)'; }
+    }
+    chart();
+  }
+  function chart() {
+    var W = 344, H = 120, m = { l: 26, r: 6, t: 8, b: 20 }, n = D.series.length, max = 30;
+    var gw = (W - m.l - m.r) / n, y = function (v) { return m.t + (H - m.t - m.b) * (1 - v / max); }, h = '';
+    [0, 10, 20, 30].forEach(function (v) { h += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#e3e8ee"/><text x="' + (m.l - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v + '</text>'; });
+    D.series.forEach(function (s, i) {
+      var x = m.l + i * gw, bw = gw * 0.3, o = i === cur ? 1 : 0.4;
+      h += '<rect x="' + (x + gw * 0.17) + '" y="' + y(s.up) + '" width="' + bw + '" height="' + (y(0) - y(s.up)) + '" fill="' + UP + '" opacity="' + o + '"/>';
+      h += '<rect x="' + (x + gw * 0.53) + '" y="' + y(s.down) + '" width="' + bw + '" height="' + (y(0) - y(s.down)) + '" fill="' + DOWN + '" opacity="' + o + '"/>';
+      h += '<text x="' + (x + gw / 2) + '" y="' + (H - 6) + '" text-anchor="middle"' + (i === cur ? ' style="font-weight:700;fill:#12305a"' : '') + '>' + fmt(s.date) + '</text>';
+    });
+    document.getElementById('chart').innerHTML = h;
+  }
+
+  // zone table
+  var rows = document.getElementById('rows');
+  function table() {
+    var fs = D.zones.features.map(function (f) { return f.properties; }).filter(function (p) { return filter === 'all' || p.dir === filter; })
+      .sort(function (a, b) { return b.area - a.area; });
+    rows.innerHTML = fs.map(function (p) {
+      return '<tr data-id="' + p.id + '"' + (p.id === sel ? ' class="sel"' : '') + '><td>' + p.id + '</td><td><span class="sw" style="background:' +
+        (p.dir === 'brightened' ? UP : DOWN) + '"></span>' + p.dir + '</td><td>' + p.area.toFixed(2) + '</td><td>' + (p.db > 0 ? '+' : '') + p.db.toFixed(1) + '</td></tr>';
+    }).join('');
+    zones.eachLayer(function (l) { var p = l.feature.properties, on = filter === 'all' || p.dir === filter; l.setStyle({ opacity: on ? 1 : 0, fillOpacity: on ? 0.05 : 0 }); });
+  }
+  function select(id, fly) {
+    sel = id; table(); var l = byId[id];
+    if (fly && l) { if (!map.hasLayer(zones)) { zones.addTo(map); document.getElementById('lZones').checked = true; } map.fitBounds(l.getBounds().pad(1.2), { maxZoom: 14 }); l.openPopup(); }
+  }
+  rows.addEventListener('click', function (e) { var tr = e.target.closest('tr'); if (tr) select(+tr.dataset.id, true); });
+  document.getElementById('filters').addEventListener('click', function (e) {
+    if (!e.target.dataset.f) return; filter = e.target.dataset.f;
+    [].forEach.call(this.children, function (b) { b.setAttribute('aria-pressed', b.dataset.f === filter ? 'true' : 'false'); }); table();
+  });
+
+  setDate(cur); table();
+})();
+</script>
+</body>
+</html>
