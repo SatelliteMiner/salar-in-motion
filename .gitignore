@@ -1,0 +1,26 @@
+# Downloaded data: not stored in the repository
+*.h5
+*.tif
+*.tiff
+*.zip
+*.kmz
+nisar_hombre_muerto/
+datos/
+resultados/
+
+# Credentials: never committed
+.netrc
+_netrc
+.env
+*.pem
+*.key
+credenciales*
+
+# Python and Jupyter temporary files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
